@@ -1,0 +1,102 @@
+# Full local stack: `docker compose up --build` (or `make up`), then open http://localhost:8000
+name: shortly
+
+x-app-env: &app-env
+  ENVIRONMENT: local
+  VERSION: ${VERSION:-local}
+  DATABASE_URL: postgresql://shortly:shortly@postgres:5432/shortly
+  REDIS_URL: redis://redis:6379/0
+  KAFKA_BOOTSTRAP: redpanda:9092
+  BASE_URL: ${BASE_URL:-http://localhost:8000}
+  JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me-0123456789}
+  GEOIP_DB_PATH: /geoip/dbip-country-lite.mmdb
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: shortly
+      POSTGRES_PASSWORD: shortly
+      POSTGRES_DB: shortly
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shortly -d shortly"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+    ports:
+      - "${KAFKA_PORT:-19092}:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redpanda-init:
+    image: redpandadata/redpanda:v24.2.7
+    entrypoint: ["sh", "-c", "rpk topic create clicks -p 3 -X brokers=redpanda:9092 || true"]
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  migrate:
+    build: .
+    image: shortly:${VERSION:-local}
+    command: ["alembic", "upgrade", "head"]
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    image: shortly:${VERSION:-local}
+    environment: *app-env
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - ./geoip:/geoip:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      redpanda-init:
+        condition: service_completed_successfully
+
+  consumer:
+    image: shortly:${VERSION:-local}
+    command: ["shortly-consumer"]
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redpanda-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  pgdata:

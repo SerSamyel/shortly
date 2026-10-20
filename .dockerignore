@@ -1,0 +1,13 @@
+.git
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+backend/.venv
+backend/*.db
+frontend/node_modules
+frontend/dist
+geoip
+e2e
+_docs
+*.md
+!backend/README.md
