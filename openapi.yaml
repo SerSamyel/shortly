@@ -330,7 +330,7 @@ components:
       required: [id, code, short_url, target_url, status, is_active, expires_at, created_at, total_clicks]
       properties:
         id: { type: integer }
-        code: { type: string, examples: [aB3x9Qk, my-talk] }
+        code: { type: string, examples: [k3x9qab, my-talk] }
         short_url: { type: string, format: uri }
         target_url: { type: string, format: uri }
         status: { $ref: '#/components/schemas/LinkStatus' }

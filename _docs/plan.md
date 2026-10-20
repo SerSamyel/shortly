@@ -7,7 +7,7 @@ Final project for AI Dev Tools Zoomcamp 2026.
 People share long URLs in chats, slides and printed materials. Long links are hard to read and type,
 and the person who shared them has no idea whether anyone opened them.
 
-Shortly turns a long URL into a short one (`https://<host>/aB3x9Qk` or a custom alias like
+Shortly turns a long URL into a short one (`https://<host>/k3x9qab` or a custom alias like
 `/my-talk`) and shows the owner how the link performs: total clicks, clicks per day, top referrers,
 countries and unique visitors.
 
@@ -45,7 +45,7 @@ Secondary journey: **owner creates a link** (success ratio, validation errors vs
 - Create a link from a target URL.
   - Only `http` and `https` URLs, max 2048 chars.
   - Links pointing to the service's own host are rejected (no redirect loops).
-  - Without an alias, the service generates a random 7-char base62 code.
+  - Without an alias, the service generates a random 7-char code from `[a-z0-9]`. All codes are lowercase, so generated codes and aliases share one case-insensitive namespace.
 - Custom alias (optional).
   - 3–32 chars, `[a-z0-9-]`, case-insensitive, cannot start or end with `-`.
   - Must be unique across all links, including deleted ones.

@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.db
+.env
+node_modules/
+frontend/dist/
+backend/static/
+geoip/*.mmdb
+test-results/
+playwright-report/
