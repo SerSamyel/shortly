@@ -11,3 +11,4 @@ backend/static/
 geoip/*.mmdb
 test-results/
 playwright-report/
+logs/
