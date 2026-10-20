@@ -91,6 +91,9 @@ services:
     image: shortly:${VERSION:-local}
     command: ["shortly-consumer"]
     environment: *app-env
+    # The image's health check probes the HTTP API; the consumer has none.
+    healthcheck:
+      disable: true
     depends_on:
       migrate:
         condition: service_completed_successfully
