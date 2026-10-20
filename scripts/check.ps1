@@ -1,5 +1,5 @@
 # Runs every check and writes one log per step into logs\ (Windows).
-# Usage: scripts\check.cmd [step ...]   steps: backend frontend deps integration build
+# Usage: scripts\check.cmd [step ...]   steps: backend frontend deps integration build up clicks
 param([string[]]$Steps = @("backend", "frontend", "deps", "integration"))
 
 $ErrorActionPreference = "Continue"
@@ -54,11 +54,21 @@ foreach ($step in $Steps) {
             $env:TEST_KAFKA_BOOTSTRAP = "localhost:19092"
             Run-Step "integration" "backend" { uv run pytest tests_integration -q -p no:cacheprovider }
         }
+        "clicks" {
+            Run-Step "clicks" "." { docker compose logs consumer | Select-String "click batch applied" | Select-Object -Last 20 }
+        }
         "build" {
             Run-Step "compose-build" "." { docker compose build }
         }
         "up" {
-            Run-Step "compose-up" "." { docker compose up -d --build --wait app consumer; docker compose ps; docker compose logs --tail 60 app consumer migrate }
+            Run-Step "compose-up" "." {
+                docker compose up -d --build --wait app
+                docker compose up -d consumer
+                # Restart so both pick up files that changed outside the image (e.g. the GeoIP database).
+                docker compose restart app consumer
+                docker compose ps
+                docker compose logs --tail 40 app consumer
+            }
         }
     }
 }
