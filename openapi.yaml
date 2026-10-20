@@ -1,0 +1,392 @@
+openapi: 3.1.0
+info:
+  title: Shortly API
+  version: 0.1.0
+  description: |
+    URL shortener with click analytics. All `/api/*` responses are JSON.
+    Errors always have the shape `{"detail": "<human readable message>"}`;
+    validation errors (422) additionally carry `errors` with per-field messages.
+servers:
+  - url: http://localhost:8000
+
+tags:
+  - name: auth
+  - name: links
+  - name: redirect
+  - name: health
+
+paths:
+  /api/auth/signup:
+    post:
+      tags: [auth]
+      summary: Create an account and log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Log in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '401':
+          description: Wrong email or password
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /api/auth/me:
+    get:
+      tags: [auth]
+      summary: Current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The logged-in user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/links:
+    get:
+      tags: [links]
+      summary: List the current user's links, newest first
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: A page of links
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LinkPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [links]
+      summary: Create a short link
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LinkCreate' }
+      responses:
+        '201':
+          description: Link created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Link' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: Alias already taken (including by a deleted link)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429':
+          description: More than 30 links created in the last minute
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/links/{link_id}:
+    parameters:
+      - $ref: '#/components/parameters/LinkId'
+    get:
+      tags: [links]
+      summary: One of the current user's links
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The link
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Link' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [links]
+      summary: Disable or re-enable a link
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LinkUpdate' }
+      responses:
+        '200':
+          description: The updated link
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Link' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [links]
+      summary: Delete a link and its analytics. The code is never reused.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: Deleted
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/links/{link_id}/stats:
+    parameters:
+      - $ref: '#/components/parameters/LinkId'
+    get:
+      tags: [links]
+      summary: Click analytics for a link
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: days
+          in: query
+          description: Size of the daily window, ending today (UTC)
+          schema: { type: integer, minimum: 1, maximum: 90, default: 30 }
+      responses:
+        '200':
+          description: Analytics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LinkStats' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /health:
+    get:
+      tags: [health]
+      summary: Liveness and readiness
+      responses:
+        '200':
+          description: The service and its database are reachable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '503':
+          description: The database is unreachable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  /{code}:
+    get:
+      tags: [redirect]
+      summary: Redirect a visitor to the target URL
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '302':
+          description: Redirect to the target URL
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+        '404':
+          description: Unknown, disabled or deleted link (HTML page)
+        '410':
+          description: Expired link (HTML page)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    LinkId:
+      name: link_id
+      in: path
+      required: true
+      schema: { type: integer }
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid or expired token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: The link does not exist or belongs to another user
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Invalid input
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+
+  schemas:
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail: { type: string }
+
+    ValidationError:
+      type: object
+      required: [detail, errors]
+      properties:
+        detail: { type: string, description: First error, ready to show to the user }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: { type: string, examples: [alias] }
+              message: { type: string }
+
+    Credentials:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 8, maxLength: 128 }
+
+    User:
+      type: object
+      required: [id, email, created_at]
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        created_at: { type: string, format: date-time }
+
+    AuthResponse:
+      type: object
+      required: [access_token, token_type, user]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, const: bearer }
+        user: { $ref: '#/components/schemas/User' }
+
+    LinkCreate:
+      type: object
+      required: [target_url]
+      properties:
+        target_url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: http or https only; links to this service's own host are rejected
+        alias:
+          type: [string, 'null']
+          minLength: 3
+          maxLength: 32
+          pattern: '^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$'
+          description: Case-insensitive, stored lowercase. Reserved words are rejected.
+        expires_at:
+          type: [string, 'null']
+          format: date-time
+          description: Must be in the future
+
+    LinkUpdate:
+      type: object
+      required: [is_active]
+      properties:
+        is_active: { type: boolean }
+
+    LinkStatus:
+      type: string
+      enum: [active, disabled, expired]
+
+    Link:
+      type: object
+      required: [id, code, short_url, target_url, status, is_active, expires_at, created_at, total_clicks]
+      properties:
+        id: { type: integer }
+        code: { type: string, examples: [aB3x9Qk, my-talk] }
+        short_url: { type: string, format: uri }
+        target_url: { type: string, format: uri }
+        status: { $ref: '#/components/schemas/LinkStatus' }
+        is_active: { type: boolean }
+        expires_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        total_clicks: { type: integer }
+
+    LinkPage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Link' }
+        total: { type: integer }
+        page: { type: integer }
+        page_size: { type: integer }
+
+    DailyClicks:
+      type: object
+      required: [date, clicks, unique_visitors]
+      properties:
+        date: { type: string, format: date }
+        clicks: { type: integer }
+        unique_visitors: { type: integer }
+
+    NamedCount:
+      type: object
+      required: [name, clicks]
+      properties:
+        name: { type: string, description: 'Referrer domain ("direct" if none) or ISO country code ("unknown" if not resolved)' }
+        clicks: { type: integer }
+
+    LinkStats:
+      type: object
+      required: [link_id, total_clicks, daily, referrers, countries]
+      properties:
+        link_id: { type: integer }
+        total_clicks: { type: integer }
+        daily:
+          type: array
+          description: One entry per day in the window, oldest first, zero-filled
+          items: { $ref: '#/components/schemas/DailyClicks' }
+        referrers:
+          type: array
+          description: Top 10 over the window
+          items: { $ref: '#/components/schemas/NamedCount' }
+        countries:
+          type: array
+          description: Top 10 over the window
+          items: { $ref: '#/components/schemas/NamedCount' }
+
+    Health:
+      type: object
+      required: [status, version]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        version: { type: string }
