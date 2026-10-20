@@ -10,7 +10,7 @@ RUN npm run build
 
 # 2. Python image with the backend; it also serves the built frontend.
 FROM python:3.14-slim AS app
-COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/app/.venv \
