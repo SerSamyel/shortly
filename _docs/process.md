@@ -3,6 +3,7 @@
 ## Tasks
 
 - Tasks are GitHub issues in this repository. The issue tracker is the only backlog.
+- `_docs/backlog/` holds the initial groomed issues; `scripts/create-issues.ps1` imports them once. After import, edit issues on GitHub, not these files.
 - One issue at a time per agent. Read the acceptance criteria before starting and again before finishing.
 - Every issue is groomed (see `_docs/task-template.md`) before anyone implements it.
 - Commit regularly. Reference the issue in commit messages: `Add alias validation (#12)`.
