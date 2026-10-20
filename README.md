@@ -118,7 +118,7 @@ The project follows a spec-first workflow with separate agents for specifying, b
 - [`.claude/agents/`](.claude/agents) - the same roles as Claude Code subagents
 - [`_docs/task-template.md`](_docs/task-template.md) - every groomed issue: goal, acceptance criteria, out of scope, constraints
 - [`_docs/testing-guidelines.md`](_docs/testing-guidelines.md) - test layers and rules
-- Task tracker: GitHub Issues of this repository
+- Task tracker: [GitHub Issues](https://github.com/SerSamyel/shortly/issues) - every issue has a goal, acceptance criteria, out of scope and constraints
 
 ## Project status
 
@@ -128,7 +128,7 @@ The project follows a spec-first workflow with separate agents for specifying, b
 | Full-stack app (frontend, backend, database), single-command run | Done |
 | Unit + integration tests | Done |
 | Containerization (Docker Compose, including the database) | Done |
-| Public task tracker with acceptance criteria | Next: GitHub Issues |
+| Public task tracker with acceptance criteria | Done: [GitHub Issues](https://github.com/SerSamyel/shortly/issues), groomed from [`_docs/backlog/`](_docs/backlog) |
 | Deployment (VPS, k3s, Helm), CI/CD with dev and manual prod promotion, rollback | Planned |
 | Observability (OpenTelemetry, Prometheus, Loki, Tempo, Grafana), alerting, on-call agent | Planned |
 
