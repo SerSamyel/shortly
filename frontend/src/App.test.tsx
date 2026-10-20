@@ -21,7 +21,8 @@ describe("authentication", () => {
     const user = userEvent.setup();
     renderApp("/signup");
     await signUp(user);
-    expect(screen.getByText(/No links yet/)).toBeInTheDocument();
+    // The list loads after the page renders, so wait for the empty state.
+    expect(await screen.findByText(/No links yet/)).toBeInTheDocument();
   });
 
   it("shows the server's message for wrong credentials", async () => {
